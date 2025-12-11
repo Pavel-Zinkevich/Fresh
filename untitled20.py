@@ -20,6 +20,12 @@ MODEL_DIR = "models"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # -----------------------------
+# Predefined class names
+# -----------------------------
+freshness_classes = ["Fresh", "Rotten"]
+fruit_classes = ["Apple", "Banana", "Strawberry"]
+
+# -----------------------------
 # Progress bar callback
 # -----------------------------
 class StreamlitProgress(Callback):
@@ -72,8 +78,21 @@ def create_cnn_model(num_classes):
 # Create dataset
 # -----------------------------
 def create_datasets(data_dir):
-    class_names = sorted([d for d in os.listdir(data_dir)
-                          if os.path.isdir(os.path.join(data_dir, d))])
+    # Игнорируем системные папки вроде __MACOSX
+    class_dirs = [
+        d for d in os.listdir(data_dir)
+        if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith("__")
+    ]
+    if len(class_dirs) == 0:
+        st.error("No valid class folders found in the dataset!")
+        st.stop()
+    # Если __MACOSX была первой, берем вторую папку
+    data_dir = os.path.join(data_dir, class_dirs[0])
+    
+    class_names = sorted([
+        d for d in os.listdir(data_dir)
+        if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith("__")
+    ])
     num_classes = len(class_names)
 
     train = tf.keras.utils.image_dataset_from_directory(
@@ -131,14 +150,14 @@ with tabs[0]:
             with zipfile.ZipFile(zip_path, 'r') as z:
                 z.extractall(tmpdir)
 
-            # Проверяем наличие классов
-            class_dirs = [d for d in os.listdir(tmpdir)
-                          if os.path.isdir(os.path.join(tmpdir, d))]
-            if len(class_dirs) < 1:
-                st.error("Dataset must contain at least 1 class folder.")
+            # Найдем основную папку с изображениями
+            folders = [d for d in os.listdir(tmpdir) if os.path.isdir(os.path.join(tmpdir, d)) and not d.startswith("__")]
+            if len(folders) == 0:
+                st.error("No valid folders found in ZIP!")
                 st.stop()
+            data_dir = os.path.join(tmpdir, folders[0])
 
-            train_ds, val_ds, class_names, num_classes = create_datasets(tmpdir)
+            train_ds, val_ds, class_names, num_classes = create_datasets(data_dir)
             st.write("Detected classes:", class_names)
 
             model = create_cnn_model(num_classes)
@@ -153,7 +172,6 @@ with tabs[0]:
                 # Сохраняем модель и JSON с классами
                 save_path = os.path.join(MODEL_DIR, model_name + ".h5")
                 model.save(save_path, save_format="h5")
-
                 class_file = os.path.join(MODEL_DIR, model_name + "_classes.json")
                 with open(class_file, "w") as f:
                     json.dump(class_names, f)
@@ -175,14 +193,20 @@ with tabs[1]:
         model = tf.keras.models.load_model(full_path)
         st.success(f"Loaded model: {selected}")
 
-        # Загрузка JSON с именами классов
-        class_file = full_path.replace(".h5", "_classes.json")
-        if os.path.exists(class_file):
-            with open(class_file, "r") as f:
-                class_names = json.load(f)
+        # Жестко заданные классы для предзагруженных моделей
+        if "freshness_model" in selected.lower():
+            class_names = freshness_classes
+        elif "fruit_model" in selected.lower():
+            class_names = fruit_classes
         else:
-            st.error("Class names file not found! Cannot display class names.")
-            st.stop()
+            # Попытка загрузить JSON для пользовательских моделей
+            class_file = full_path.replace(".h5", "_classes.json")
+            if os.path.exists(class_file):
+                with open(class_file, "r") as f:
+                    class_names = json.load(f)
+            else:
+                num_classes = model.output_shape[-1]
+                class_names = [f"class_{i}" for i in range(num_classes)]
 
         img_file = st.file_uploader("Upload image", type=["png", "jpg", "jpeg"])
 
@@ -200,6 +224,7 @@ with tabs[1]:
 
         if st.button("Delete model"):
             os.remove(full_path)
+            class_file = full_path.replace(".h5", "_classes.json")
             if os.path.exists(class_file):
                 os.remove(class_file)
             st.warning("Model and class names removed.")
