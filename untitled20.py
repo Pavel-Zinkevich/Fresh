@@ -16,7 +16,6 @@ from tensorflow.keras.callbacks import Callback
 # -----------------------------
 IMG_WIDTH, IMG_HEIGHT = 256, 256
 BATCH_SIZE = 32
-
 MODEL_DIR = "models"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
@@ -151,16 +150,16 @@ with tabs[0]:
                 progress = StreamlitProgress(epochs)
                 model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[progress])
 
-                # Сохраняем модель в .h5
+                # Сохраняем модель и JSON с классами
                 save_path = os.path.join(MODEL_DIR, model_name + ".h5")
                 model.save(save_path, save_format="h5")
 
-                # Сохраняем имена классов рядом с моделью
                 class_file = os.path.join(MODEL_DIR, model_name + "_classes.json")
                 with open(class_file, "w") as f:
                     json.dump(class_names, f)
 
-                st.success(f"Model and class names saved:\n{save_path}\n{class_file}")
+                st.success(f"Model saved: {save_path}")
+                st.success(f"Class names saved: {class_file}")
 
 # ================================================================
 # INFERENCE
@@ -176,15 +175,14 @@ with tabs[1]:
         model = tf.keras.models.load_model(full_path)
         st.success(f"Loaded model: {selected}")
 
-        # Загружаем имена классов
+        # Загрузка JSON с именами классов
         class_file = full_path.replace(".h5", "_classes.json")
         if os.path.exists(class_file):
             with open(class_file, "r") as f:
                 class_names = json.load(f)
         else:
-            # fallback
-            num_classes = model.output_shape[-1]
-            class_names = [f"class_{i}" for i in range(num_classes)]
+            st.error("Class names file not found! Cannot display class names.")
+            st.stop()
 
         img_file = st.file_uploader("Upload image", type=["png", "jpg", "jpeg"])
 
@@ -202,8 +200,6 @@ with tabs[1]:
 
         if st.button("Delete model"):
             os.remove(full_path)
-            class_file = full_path.replace(".h5", "_classes.json")
             if os.path.exists(class_file):
                 os.remove(class_file)
             st.warning("Model and class names removed.")
- 
