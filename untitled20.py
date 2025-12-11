@@ -77,18 +77,14 @@ def create_cnn_model(num_classes):
 # -----------------------------
 # Create dataset
 # -----------------------------
-def create_datasets(root_dir):
-    # Находим первую нормальную папку с классами (игнор __MACOSX)
-    folders = [d for d in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, d)) and not d.startswith("__")]
-    if len(folders) == 0:
-        st.error("No valid folders found in ZIP!")
-        st.stop()
-    data_dir = os.path.join(root_dir, folders[0])
-
-    # Проверяем, что внутри есть папки-классы
-    class_dirs = [d for d in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith("__")]
+def create_datasets(data_dir):
+    # Игнорируем системные папки вроде __MACOSX
+    class_dirs = [
+        d for d in os.listdir(data_dir)
+        if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith("__")
+    ]
     if len(class_dirs) == 0:
-        st.error("No valid class folders found inside main folder!")
+        st.error("No valid class folders found in the dataset!")
         st.stop()
 
     class_names = sorted(class_dirs)
@@ -118,6 +114,7 @@ def create_datasets(root_dir):
     val = val.cache().prefetch(tf.data.AUTOTUNE)
 
     return train, val, class_names, num_classes
+
 
 # -----------------------------
 # List saved models
