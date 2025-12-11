@@ -8,6 +8,7 @@ import zipfile
 import os
 import tempfile
 import glob
+import json
 from tensorflow.keras.callbacks import Callback
 
 # -----------------------------
@@ -105,7 +106,7 @@ def create_datasets(data_dir):
 # List saved models
 # -----------------------------
 def get_saved_models():
-    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*"))]
+    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*.h5"))]
 
 # -----------------------------
 # Streamlit UI
@@ -149,10 +150,17 @@ with tabs[0]:
             if st.button("Start Training", key="train_start"):
                 progress = StreamlitProgress(epochs)
                 model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[progress])
+
+                # Сохраняем модель в .h5
                 save_path = os.path.join(MODEL_DIR, model_name + ".h5")
                 model.save(save_path, save_format="h5")
 
-                st.success(f"Model saved: {save_path}")
+                # Сохраняем имена классов рядом с моделью
+                class_file = os.path.join(MODEL_DIR, model_name + "_classes.json")
+                with open(class_file, "w") as f:
+                    json.dump(class_names, f)
+
+                st.success(f"Model and class names saved:\n{save_path}\n{class_file}")
 
 # ================================================================
 # INFERENCE
@@ -168,13 +176,13 @@ with tabs[1]:
         model = tf.keras.models.load_model(full_path)
         st.success(f"Loaded model: {selected}")
 
-        # Получаем классы из последнего обучения
-        # Они сохраняются внутри модели в атрибуте model.class_names
-        # Если нет, загружаем из подпапок модели (т.е. user должен запомнить)
-        if hasattr(model, "class_names"):
-            class_names = model.class_names
+        # Загружаем имена классов
+        class_file = full_path.replace(".h5", "_classes.json")
+        if os.path.exists(class_file):
+            with open(class_file, "r") as f:
+                class_names = json.load(f)
         else:
-            # fallback: просто используем generic class_0..N
+            # fallback
             num_classes = model.output_shape[-1]
             class_names = [f"class_{i}" for i in range(num_classes)]
 
@@ -194,4 +202,7 @@ with tabs[1]:
 
         if st.button("Delete model"):
             os.remove(full_path)
-            st.warning("Model removed.")
+            class_file = full_path.replace(".h5", "_classes.json")
+            if os.path.exists(class_file):
+                os.remove(class_file)
+            st.warning("Model and class names removed.")
