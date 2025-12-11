@@ -14,6 +14,7 @@ from tensorflow.keras import layers, Sequential
 import zipfile
 import os
 import tempfile
+import glob
 
 # -----------------------------
 # Настройки
@@ -23,10 +24,11 @@ VALIDATION_SPLIT = 0.2
 SEED = 123
 BATCH_SIZE = 32
 
-# Пути к твоим моделям в репозитории
-FRESHNESS_MODEL_PATH = "freshness_model.keras"
-FRUIT_MODEL_PATH = "fruit_model.keras"
+# Папка для сохранённых моделей
+MODEL_DIR = "models"
+os.makedirs(MODEL_DIR, exist_ok=True)
 
+# Классы
 freshness_classes = ["fresh", "rotten"]
 fruit_classes = ["apple", "banana", "strawberry"]
 
@@ -63,7 +65,7 @@ def create_cnn_model(num_classes, img_size=(IMG_WIDTH, IMG_HEIGHT, 3), dropout_r
     return model
 
 # -----------------------------
-# Функция для создания датасета
+# Создание датасета
 # -----------------------------
 def create_datasets(data_dir):
     train_ds = tf.keras.utils.image_dataset_from_directory(
@@ -91,6 +93,12 @@ def create_datasets(data_dir):
     val_ds = val_ds.cache().prefetch(tf.data.AUTOTUNE)
     
     return train_ds, val_ds, class_names, num_classes
+
+# -----------------------------
+# Получение списка сохранённых моделей
+# -----------------------------
+def get_saved_models():
+    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*.keras"))]
 
 # -----------------------------
 # Интерфейс
@@ -123,53 +131,62 @@ with tab[0]:
             model = create_cnn_model(num_classes=num_classes)
             model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
             
+            model_name = st.text_input("Enter a name for the trained model", "my_model")
             if st.button("Start Training"):
                 st.write("Training started...")
                 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
                 st.success("Training finished!")
-                model.save("trained_model.keras")
-                st.write("Model saved as trained_model.keras")
+                save_path = os.path.join(MODEL_DIR, f"{model_name}.keras")
+                model.save(save_path)
+                st.write(f"Model saved as {save_path}")
 
 # -----------------------------
 # INFERENCE: FRESHNESS
 # -----------------------------
 with tab[1]:
     st.header("Freshness Prediction")
-    if os.path.exists(FRESHNESS_MODEL_PATH):
-        freshness_model = tf.keras.models.load_model(FRESHNESS_MODEL_PATH)
-        st.success("Freshness model loaded!")
-    else:
-        st.warning("Freshness model not found. Please upload or train it first.")
-        freshness_model = None
+    models_list = get_saved_models()
+    selected_model = st.selectbox("Select a freshness model", models_list)
+    if selected_model:
+        freshness_model = tf.keras.models.load_model(os.path.join(MODEL_DIR, selected_model))
+        st.success(f"Loaded model: {selected_model}")
 
-    uploaded_file = st.file_uploader("Upload image for freshness prediction", type=["jpg","jpeg","png"], key="freshness")
-    if uploaded_file and freshness_model:
-        image = Image.open(uploaded_file).convert("RGB")
-        st.image(image, caption="Uploaded Image", use_column_width=True)
-        resized_img = image.resize((IMG_WIDTH, IMG_HEIGHT))
-        input_array = np.expand_dims(np.array(resized_img)/255.0, axis=0)
-        pred = freshness_model.predict(input_array)
-        idx = np.argmax(pred, axis=1)[0]
-        st.success(f"Prediction: {freshness_classes[idx]} ({pred[0][idx]:.2%})")
+        uploaded_file = st.file_uploader("Upload image for freshness prediction", type=["jpg","jpeg","png"], key="freshness")
+        if uploaded_file:
+            image = Image.open(uploaded_file).convert("RGB")
+            st.image(image, caption="Uploaded Image", use_column_width=True)
+            resized_img = image.resize((IMG_WIDTH, IMG_HEIGHT))
+            input_array = np.expand_dims(np.array(resized_img)/255.0, axis=0)
+            pred = freshness_model.predict(input_array)
+            idx = np.argmax(pred, axis=1)[0]
+            st.success(f"Prediction: {freshness_classes[idx]} ({pred[0][idx]:.2%})")
+        
+        if st.button("Delete selected model"):
+            os.remove(os.path.join(MODEL_DIR, selected_model))
+            st.warning(f"Deleted model {selected_model}")
 
 # -----------------------------
 # INFERENCE: FRUIT TYPE
 # -----------------------------
 with tab[2]:
     st.header("Fruit Type Prediction")
-    if os.path.exists(FRUIT_MODEL_PATH):
-        fruit_model = tf.keras.models.load_model(FRUIT_MODEL_PATH)
-        st.success("Fruit model loaded!")
-    else:
-        st.warning("Fruit model not found. Please upload or train it first.")
-        fruit_model = None
+    models_list = get_saved_models()
+    selected_model = st.selectbox("Select a fruit type model", models_list)
+    if selected_model:
+        fruit_model = tf.keras.models.load_model(os.path.join(MODEL_DIR, selected_model))
+        st.success(f"Loaded model: {selected_model}")
 
-    uploaded_file2 = st.file_uploader("Upload image for fruit prediction", type=["jpg","jpeg","png"], key="fruit")
-    if uploaded_file2 and fruit_model:
-        image = Image.open(uploaded_file2).convert("RGB")
-        st.image(image, caption="Uploaded Image", use_column_width=True)
-        resized_img = image.resize((IMG_WIDTH, IMG_HEIGHT))
-        input_array = np.expand_dims(np.array(resized_img)/255.0, axis=0)
-        pred = fruit_model.predict(input_array)
-        idx = np.argmax(pred, axis=1)[0]
-        st.success(f"Prediction: {fruit_classes[idx]} ({pred[0][idx]:.2%})")
+        uploaded_file2 = st.file_uploader("Upload image for fruit prediction", type=["jpg","jpeg","png"], key="fruit")
+        if uploaded_file2:
+            image = Image.open(uploaded_file2).convert("RGB")
+            st.image(image, caption="Uploaded Image", use_column_width=True)
+            resized_img = image.resize((IMG_WIDTH, IMG_HEIGHT))
+            input_array = np.expand_dims(np.array(resized_img)/255.0, axis=0)
+            pred = fruit_model.predict(input_array)
+            idx = np.argmax(pred, axis=1)[0]
+            st.success(f"Prediction: {fruit_classes[idx]} ({pred[0][idx]:.2%})")
+        
+        if st.button("Delete selected model"):
+            os.remove(os.path.join(MODEL_DIR, selected_model))
+            st.warning(f"Deleted model {selected_model}")
+
