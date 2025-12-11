@@ -111,9 +111,9 @@ tab = st.tabs(["Train Model", "Inference: Freshness", "Inference: Fruit Type"])
 # -----------------------------
 with tab[0]:
     st.header("Train or Check Your Model")
-    uploaded_zip = st.file_uploader("Upload dataset ZIP for training", type=["zip"])
-    epochs = st.slider("Epochs", 1, 50, 5)
-    batch_size = st.select_slider("Batch size", [16, 32, 64], value=32)
+    uploaded_zip = st.file_uploader("Upload dataset ZIP for training", type=["zip"], key="train_zip")
+    epochs = st.slider("Epochs", 1, 50, 5, key="train_epochs")
+    batch_size = st.select_slider("Batch size", [16, 32, 64], value=32, key="train_batch")
 
     if uploaded_zip is not None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -131,8 +131,8 @@ with tab[0]:
             model = create_cnn_model(num_classes=num_classes)
             model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
             
-            model_name = st.text_input("Enter a name for the trained model", "my_model")
-            if st.button("Start Training"):
+            model_name = st.text_input("Enter a name for the trained model", "my_model", key="train_model_name")
+            if st.button("Start Training", key="train_button"):
                 st.write("Training started...")
                 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
                 st.success("Training finished!")
@@ -146,12 +146,12 @@ with tab[0]:
 with tab[1]:
     st.header("Freshness Prediction")
     models_list = get_saved_models()
-    selected_model = st.selectbox("Select a freshness model", models_list)
+    selected_model = st.selectbox("Select a freshness model", models_list, key="select_freshness_model")
     if selected_model:
         freshness_model = tf.keras.models.load_model(os.path.join(MODEL_DIR, selected_model))
         st.success(f"Loaded model: {selected_model}")
 
-        uploaded_file = st.file_uploader("Upload image for freshness prediction", type=["jpg","jpeg","png"], key="freshness")
+        uploaded_file = st.file_uploader("Upload image for freshness prediction", type=["jpg","jpeg","png"], key="upload_freshness_image")
         if uploaded_file:
             image = Image.open(uploaded_file).convert("RGB")
             st.image(image, caption="Uploaded Image", use_column_width=True)
@@ -161,7 +161,7 @@ with tab[1]:
             idx = np.argmax(pred, axis=1)[0]
             st.success(f"Prediction: {freshness_classes[idx]} ({pred[0][idx]:.2%})")
         
-        if st.button("Delete selected model"):
+        if st.button("Delete selected model", key="delete_freshness"):
             os.remove(os.path.join(MODEL_DIR, selected_model))
             st.warning(f"Deleted model {selected_model}")
 
@@ -171,12 +171,12 @@ with tab[1]:
 with tab[2]:
     st.header("Fruit Type Prediction")
     models_list = get_saved_models()
-    selected_model = st.selectbox("Select a fruit type model", models_list)
+    selected_model = st.selectbox("Select a fruit type model", models_list, key="select_fruit_model")
     if selected_model:
         fruit_model = tf.keras.models.load_model(os.path.join(MODEL_DIR, selected_model))
         st.success(f"Loaded model: {selected_model}")
 
-        uploaded_file2 = st.file_uploader("Upload image for fruit prediction", type=["jpg","jpeg","png"], key="fruit")
+        uploaded_file2 = st.file_uploader("Upload image for fruit prediction", type=["jpg","jpeg","png"], key="upload_fruit_image")
         if uploaded_file2:
             image = Image.open(uploaded_file2).convert("RGB")
             st.image(image, caption="Uploaded Image", use_column_width=True)
@@ -186,7 +186,10 @@ with tab[2]:
             idx = np.argmax(pred, axis=1)[0]
             st.success(f"Prediction: {fruit_classes[idx]} ({pred[0][idx]:.2%})")
         
-        if st.button("Delete selected model"):
+        if st.button("Delete selected model", key="delete_fruit"):
+            os.remove(os.path.join(MODEL_DIR, selected_model))
+            st.warning(f"Deleted model {selected_model}")
+
             os.remove(os.path.join(MODEL_DIR, selected_model))
             st.warning(f"Deleted model {selected_model}")
 
