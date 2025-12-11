@@ -98,16 +98,16 @@ def create_datasets(data_dir):
     return train, val, train.class_names, len(train.class_names)
 
 # -----------------------------
-# List saved weight files
+# List saved models
 # -----------------------------
 def get_saved_models():
-    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*.h5"))]
+    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*"))]
 
 # -----------------------------
 # Streamlit UI
 # -----------------------------
 st.title("Fruit Freshness & Type Classifier 🍎🍌🍓")
-tabs = st.tabs(["Train Model", "Inference: Freshness", "Inference: Fruit Type"])
+tabs = st.tabs(["Train Model", "Inference"])
 
 # ================================================================
 # TRAIN MODEL
@@ -121,7 +121,6 @@ with tabs[0]:
 
     if uploaded_zip:
         with tempfile.TemporaryDirectory() as tmpdir:
-
             zip_path = os.path.join(tmpdir, "dataset.zip")
             with open(zip_path, "wb") as f:
                 f.write(uploaded_zip.getvalue())
@@ -140,25 +139,36 @@ with tabs[0]:
                 progress = StreamlitProgress(epochs)
                 model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[progress])
 
-                save_path = os.path.join(MODEL_DIR, model_name + ".h5")
-                model.save_weights(save_path)
+                save_path = os.path.join(MODEL_DIR, model_name)
+                model.save(save_path)
                 st.success(f"Model saved: {save_path}")
 
 # ================================================================
-# INFERENCE: FRESHNESS
+# INFERENCE (unified)
 # ================================================================
 with tabs[1]:
-    st.header("Freshness Prediction")
+    st.header("Model Prediction")
 
     models_list = get_saved_models()
-    selected = st.selectbox("Choose model", models_list, key="fresh_model")
+    selected = st.selectbox("Choose model", models_list)
 
     if selected:
         full_path = os.path.join(MODEL_DIR, selected)
 
-        model = create_cnn_model(len(freshness_classes))
-        model.load_weights(full_path)
+        model = tf.keras.models.load_model(full_path)
         st.success(f"Loaded model: {selected}")
+
+        # detect number of classes
+        num_classes = model.layers[-1].output_shape[-1]
+
+        if num_classes == len(freshness_classes):
+            active_labels = freshness_classes
+        elif num_classes == len(fruit_classes):
+            active_labels = fruit_classes
+        else:
+            active_labels = [f"class_{i}" for i in range(num_classes)]
+
+        st.write("Detected classes:", active_labels)
 
         img_file = st.file_uploader("Upload image", type=["png", "jpg", "jpeg"])
 
@@ -167,45 +177,13 @@ with tabs[1]:
             st.image(img, use_column_width=True)
 
             resized = img.resize((IMG_WIDTH, IMG_HEIGHT))
-            arr = np.expand_dims(np.array(resized)/255.0, axis=0)
+            arr = np.expand_dims(np.array(resized) / 255.0, axis=0)
+
             pred = model.predict(arr)[0]
             idx = np.argmax(pred)
 
-            st.success(f"Prediction: {freshness_classes[idx]} ({pred[idx]:.2%})")
+            st.success(f"Prediction: {active_labels[idx]} ({pred[idx]:.2%})")
 
-        if st.button("Delete model", key="del_fresh"):
-            os.remove(full_path)
-            st.warning("Model removed.")
-
-# ================================================================
-# INFERENCE: FRUIT TYPE
-# ================================================================
-with tabs[2]:
-    st.header("Fruit Type Prediction")
-
-    models_list = get_saved_models()
-    selected = st.selectbox("Choose model", models_list, key="fruit_model")
-
-    if selected:
-        full_path = os.path.join(MODEL_DIR, selected)
-
-        model = create_cnn_model(len(fruit_classes))
-        model.load_weights(full_path)
-        st.success(f"Loaded model: {selected}")
-
-        img_file = st.file_uploader("Upload image", type=["png", "jpg", "jpeg"], key="fruit_upload")
-
-        if img_file:
-            img = Image.open(img_file).convert("RGB")
-            st.image(img, use_column_width=True)
-
-            resized = img.resize((IMG_WIDTH, IMG_HEIGHT))
-            arr = np.expand_dims(np.array(resized)/255.0, axis=0)
-            pred = model.predict(arr)[0]
-            idx = np.argmax(pred)
-
-            st.success(f"Prediction: {fruit_classes[idx]} ({pred[idx]:.2%})")
-
-        if st.button("Delete model", key="del_fruit"):
+        if st.button("Delete model"):
             os.remove(full_path)
             st.warning("Model removed.")
