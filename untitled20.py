@@ -16,6 +16,27 @@ import os
 import tempfile
 import glob
 
+import streamlit as st
+from tensorflow.keras.callbacks import Callback
+
+# Custom callback to update Streamlit progress
+class StreamlitProgress(Callback):
+    def __init__(self, epochs):
+        super().__init__()
+        self.epochs = epochs
+        self.progress_bar = st.progress(0)
+        self.status_text = st.empty()
+    
+    def on_epoch_end(self, epoch, logs=None):
+        progress = (epoch + 1) / self.epochs
+        self.progress_bar.progress(progress)
+        self.status_text.text(f"Epoch {epoch+1}/{self.epochs} - "
+                              f"loss: {logs['loss']:.4f}, "
+                              f"val_loss: {logs.get('val_loss', 0):.4f}, "
+                              f"accuracy: {logs.get('accuracy', 0):.4f}, "
+                              f"val_accuracy: {logs.get('val_accuracy', 0):.4f}")
+
+
 # -----------------------------
 # Settings
 # -----------------------------
@@ -134,11 +155,23 @@ with tab[0]:
             model_name = st.text_input("Enter a name for the trained model", "my_model", key="train_model_name")
             if st.button("Start Training", key="train_button"):
                 st.write("Training started...")
-                history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
+                
+                # Create the progress callback
+                progress_callback = StreamlitProgress(epochs)
+                
+                # Train the model with progress
+                history = model.fit(
+                    train_ds,
+                    validation_data=val_ds,
+                    epochs=epochs,
+                    callbacks=[progress_callback]
+                )
+                
                 st.success("Training finished!")
-                save_path = os.path.join(MODEL_DIR, f"{model_name}.keras")
+                save_path = os.path.join(MODEL_DIR, f"{model_name}.h5")
                 model.save_weights(save_path)
                 st.write(f"Model weights saved as {save_path}")
+
 
 # -----------------------------
 # INFERENCE: FRESHNESS
