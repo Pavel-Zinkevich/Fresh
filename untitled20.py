@@ -206,3 +206,4 @@ with tabs[1]:
             if os.path.exists(class_file):
                 os.remove(class_file)
             st.warning("Model and class names removed.")
+ 
