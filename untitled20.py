@@ -23,9 +23,9 @@ VALIDATION_SPLIT = 0.2
 SEED = 123
 BATCH_SIZE = 32
 
-# Пути к твоим заранее обученным моделям
-FRESHNESS_MODEL_PATH = "freshness_model.h5"
-FRUIT_MODEL_PATH = "fruit_model.h5"
+# Пути к твоим моделям в репозитории
+FRESHNESS_MODEL_PATH = "freshness_model.keras"
+FRUIT_MODEL_PATH = "fruit_model.keras"
 
 freshness_classes = ["fresh", "rotten"]
 fruit_classes = ["apple", "banana", "strawberry"]
@@ -127,8 +127,8 @@ with tab[0]:
                 st.write("Training started...")
                 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
                 st.success("Training finished!")
-                model.save("trained_model.h5")
-                st.write("Model saved as trained_model.h5")
+                model.save("trained_model.keras")
+                st.write("Model saved as trained_model.keras")
 
 # -----------------------------
 # INFERENCE: FRESHNESS
@@ -173,4 +173,3 @@ with tab[2]:
         pred = fruit_model.predict(input_array)
         idx = np.argmax(pred, axis=1)[0]
         st.success(f"Prediction: {fruit_classes[idx]} ({pred[0][idx]:.2%})")
-
