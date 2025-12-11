@@ -77,22 +77,21 @@ def create_cnn_model(num_classes):
 # -----------------------------
 # Create dataset
 # -----------------------------
-def create_datasets(data_dir):
-    # Игнорируем системные папки вроде __MACOSX
-    class_dirs = [
-        d for d in os.listdir(data_dir)
-        if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith("__")
-    ]
-    if len(class_dirs) == 0:
-        st.error("No valid class folders found in the dataset!")
+def create_datasets(root_dir):
+    # Находим первую нормальную папку с классами (игнор __MACOSX)
+    folders = [d for d in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, d)) and not d.startswith("__")]
+    if len(folders) == 0:
+        st.error("No valid folders found in ZIP!")
         st.stop()
-    # Если __MACOSX была первой, берем вторую папку
-    data_dir = os.path.join(data_dir, class_dirs[0])
-    
-    class_names = sorted([
-        d for d in os.listdir(data_dir)
-        if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith("__")
-    ])
+    data_dir = os.path.join(root_dir, folders[0])
+
+    # Проверяем, что внутри есть папки-классы
+    class_dirs = [d for d in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith("__")]
+    if len(class_dirs) == 0:
+        st.error("No valid class folders found inside main folder!")
+        st.stop()
+
+    class_names = sorted(class_dirs)
     num_classes = len(class_names)
 
     train = tf.keras.utils.image_dataset_from_directory(
@@ -150,14 +149,7 @@ with tabs[0]:
             with zipfile.ZipFile(zip_path, 'r') as z:
                 z.extractall(tmpdir)
 
-            # Найдем основную папку с изображениями
-            folders = [d for d in os.listdir(tmpdir) if os.path.isdir(os.path.join(tmpdir, d)) and not d.startswith("__")]
-            if len(folders) == 0:
-                st.error("No valid folders found in ZIP!")
-                st.stop()
-            data_dir = os.path.join(tmpdir, folders[0])
-
-            train_ds, val_ds, class_names, num_classes = create_datasets(data_dir)
+            train_ds, val_ds, class_names, num_classes = create_datasets(tmpdir)
             st.write("Detected classes:", class_names)
 
             model = create_cnn_model(num_classes)
