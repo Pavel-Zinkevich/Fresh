@@ -96,17 +96,25 @@ def get_main_data_dir(tmpdir):
     return main_dir
 
 
-def create_datasets(data_dir):
-    # Все подпапки основной папки — это классы
-    class_names = sorted([
-        d for d in os.listdir(data_dir)
-        if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith("__")
-    ])
-    if len(class_names) == 0:
-        st.error("No valid class folders found inside main folder!")
-        st.stop()
+def get_data_dir_for_dataset(tmpdir):
+    # Список папок верхнего уровня
+    top_folders = [d for d in os.listdir(tmpdir) if os.path.isdir(os.path.join(tmpdir, d))]
+    if "__MACOSX" in top_folders:
+        # Берём любую папку кроме __MACOSX
+        top_folders = [d for d in top_folders if d != "__MACOSX"]
+        if not top_folders:
+            st.error("No valid folders found in ZIP!")
+            st.stop()
+        data_dir = os.path.join(tmpdir, top_folders[0])
+    else:
+        # Если __MACOSX нет, просто используем tmpdir
+        data_dir = tmpdir
 
-    num_classes = len(class_names)
+    return data_dir
+
+
+def create_datasets(tmpdir):
+    data_dir = get_data_dir_for_dataset(tmpdir)
 
     train = tf.keras.utils.image_dataset_from_directory(
         data_dir,
@@ -128,10 +136,13 @@ def create_datasets(data_dir):
         label_mode="categorical"
     )
 
+    class_names = train.class_names
+    num_classes = len(class_names)
+
     train = train.cache().shuffle(1000).prefetch(tf.data.AUTOTUNE)
     val = val.cache().prefetch(tf.data.AUTOTUNE)
 
-    return train, val, cl
+    return train, val, class_names, num_classes
 
 
 
