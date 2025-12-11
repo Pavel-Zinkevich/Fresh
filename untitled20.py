@@ -98,7 +98,7 @@ def create_datasets(data_dir):
 # List saved model weights
 # -----------------------------
 def get_saved_models():
-    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*.h5"))]
+    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*.keras"))]
 
 # -----------------------------
 # Streamlit UI
@@ -136,7 +136,7 @@ with tab[0]:
                 st.write("Training started...")
                 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
                 st.success("Training finished!")
-                save_path = os.path.join(MODEL_DIR, f"{model_name}.h5")
+                save_path = os.path.join(MODEL_DIR, f"{model_name}.keras")
                 model.save_weights(save_path)
                 st.write(f"Model weights saved as {save_path}")
 
