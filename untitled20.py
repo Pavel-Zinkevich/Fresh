@@ -17,18 +17,18 @@ import tempfile
 import glob
 
 # -----------------------------
-# Настройки
+# Settings
 # -----------------------------
 IMG_WIDTH, IMG_HEIGHT = 256, 256
 VALIDATION_SPLIT = 0.2
 SEED = 123
 BATCH_SIZE = 32
 
-# Папка для сохранённых моделей
+# Folder to store trained model weights
 MODEL_DIR = "models"
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# Классы
+# Classes
 freshness_classes = ["fresh", "rotten"]
 fruit_classes = ["apple", "banana", "strawberry"]
 
@@ -42,7 +42,7 @@ data_augmentation = tf.keras.Sequential([
 ], name="data_augmentation")
 
 # -----------------------------
-# Функции для создания модели
+# Create CNN model
 # -----------------------------
 def create_cnn_model(num_classes, img_size=(IMG_WIDTH, IMG_HEIGHT, 3), dropout_rate=0.4):
     model = Sequential([
@@ -65,7 +65,7 @@ def create_cnn_model(num_classes, img_size=(IMG_WIDTH, IMG_HEIGHT, 3), dropout_r
     return model
 
 # -----------------------------
-# Создание датасета
+# Create datasets from folder
 # -----------------------------
 def create_datasets(data_dir):
     train_ds = tf.keras.utils.image_dataset_from_directory(
@@ -88,20 +88,20 @@ def create_datasets(data_dir):
     )
     class_names = train_ds.class_names
     num_classes = len(class_names)
-    
+
     train_ds = train_ds.cache().shuffle(1000).prefetch(tf.data.AUTOTUNE)
     val_ds = val_ds.cache().prefetch(tf.data.AUTOTUNE)
-    
+
     return train_ds, val_ds, class_names, num_classes
 
 # -----------------------------
-# Получение списка сохранённых моделей
+# List saved model weights
 # -----------------------------
 def get_saved_models():
-    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*.keras"))]
+    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*.h5"))]
 
 # -----------------------------
-# Интерфейс
+# Streamlit UI
 # -----------------------------
 st.title("Fruit Freshness & Type Classifier 🍎🍌🍓")
 tab = st.tabs(["Train Model", "Inference: Freshness", "Inference: Fruit Type"])
@@ -136,7 +136,7 @@ with tab[0]:
                 st.write("Training started...")
                 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
                 st.success("Training finished!")
-                save_path = os.path.join(MODEL_DIR, f"{model_name}.keras")
+                save_path = os.path.join(MODEL_DIR, f"{model_name}.h5")
                 model.save_weights(save_path)
                 st.write(f"Model weights saved as {save_path}")
 
@@ -147,6 +147,7 @@ with tab[1]:
     st.header("Freshness Prediction")
     models_list = get_saved_models()
     selected_model = st.selectbox("Select a freshness model", models_list, key="select_freshness_model")
+    
     if selected_model:
         freshness_model = create_cnn_model(num_classes=len(freshness_classes))
         freshness_model.load_weights(os.path.join(MODEL_DIR, selected_model))
@@ -173,6 +174,7 @@ with tab[2]:
     st.header("Fruit Type Prediction")
     models_list = get_saved_models()
     selected_model = st.selectbox("Select a fruit type model", models_list, key="select_fruit_model")
+    
     if selected_model:
         fruit_model = create_cnn_model(num_classes=len(fruit_classes))
         fruit_model.load_weights(os.path.join(MODEL_DIR, selected_model))
