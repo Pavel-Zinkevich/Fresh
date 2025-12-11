@@ -14,15 +14,10 @@ from tensorflow.keras.callbacks import Callback
 # Settings
 # -----------------------------
 IMG_WIDTH, IMG_HEIGHT = 256, 256
-VALIDATION_SPLIT = 0.2
-SEED = 123
 BATCH_SIZE = 32
 
 MODEL_DIR = "models"
 os.makedirs(MODEL_DIR, exist_ok=True)
-
-freshness_classes = ["fresh", "rotten"]
-fruit_classes = ["apple", "banana", "strawberry"]
 
 # -----------------------------
 # Progress bar callback
@@ -62,18 +57,14 @@ def create_cnn_model(num_classes):
         layers.Input(shape=(IMG_WIDTH, IMG_HEIGHT, 3)),
         data_augmentation,
         layers.Rescaling(1./255),
-
-        layers.Conv2D(32, 3, padding='same', activation='relu'),
-        layers.MaxPooling2D(2),
-        layers.Conv2D(64, 3, padding='same', activation='relu'),
-        layers.MaxPooling2D(2),
-        layers.Conv2D(128, 3, padding='same', activation='relu'),
-        layers.MaxPooling2D(2),
-
-        layers.Dropout(0.4),
-        layers.GlobalAveragePooling2D(),
-
-        layers.Dense(64, activation='relu'),
+        layers.Conv2D(32, 3, activation='relu'),
+        layers.MaxPooling2D(),
+        layers.Conv2D(64, 3, activation='relu'),
+        layers.MaxPooling2D(),
+        layers.Conv2D(128, 3, activation='relu'),
+        layers.MaxPooling2D(),
+        layers.Flatten(),
+        layers.Dense(128, activation='relu'),
         layers.Dense(num_classes, activation='softmax')
     ])
 
@@ -81,7 +72,6 @@ def create_cnn_model(num_classes):
 # Create dataset
 # -----------------------------
 def create_datasets(data_dir):
-    # Read class names manually from subfolders
     class_names = sorted([d for d in os.listdir(data_dir)
                           if os.path.isdir(os.path.join(data_dir, d))])
     num_classes = len(class_names)
@@ -111,7 +101,6 @@ def create_datasets(data_dir):
 
     return train, val, class_names, num_classes
 
-
 # -----------------------------
 # List saved models
 # -----------------------------
@@ -121,7 +110,7 @@ def get_saved_models():
 # -----------------------------
 # Streamlit UI
 # -----------------------------
-st.title("Fruit Freshness & Type Classifier 🍎🍌🍓")
+st.title("Fruit Classifier 🍎🍌🍓")
 tabs = st.tabs(["Train Model", "Inference"])
 
 # ================================================================
@@ -142,6 +131,13 @@ with tabs[0]:
             with zipfile.ZipFile(zip_path, 'r') as z:
                 z.extractall(tmpdir)
 
+            # Проверяем наличие классов
+            class_dirs = [d for d in os.listdir(tmpdir)
+                          if os.path.isdir(os.path.join(tmpdir, d))]
+            if len(class_dirs) < 1:
+                st.error("Dataset must contain at least 1 class folder.")
+                st.stop()
+
             train_ds, val_ds, class_names, num_classes = create_datasets(tmpdir)
             st.write("Detected classes:", class_names)
 
@@ -159,7 +155,7 @@ with tabs[0]:
                 st.success(f"Model saved: {save_path}")
 
 # ================================================================
-# INFERENCE (unified)
+# INFERENCE
 # ================================================================
 with tabs[1]:
     st.header("Model Prediction")
@@ -169,21 +165,18 @@ with tabs[1]:
 
     if selected:
         full_path = os.path.join(MODEL_DIR, selected)
-
         model = tf.keras.models.load_model(full_path)
         st.success(f"Loaded model: {selected}")
 
-        # detect number of classes
-        num_classes = model.output_shape[-1]
-
-        if num_classes == len(freshness_classes):
-            active_labels = freshness_classes
-        elif num_classes == len(fruit_classes):
-            active_labels = fruit_classes
+        # Получаем классы из последнего обучения
+        # Они сохраняются внутри модели в атрибуте model.class_names
+        # Если нет, загружаем из подпапок модели (т.е. user должен запомнить)
+        if hasattr(model, "class_names"):
+            class_names = model.class_names
         else:
-            active_labels = [f"class_{i}" for i in range(num_classes)]
-
-        st.write("Detected classes:", active_labels)
+            # fallback: просто используем generic class_0..N
+            num_classes = model.output_shape[-1]
+            class_names = [f"class_{i}" for i in range(num_classes)]
 
         img_file = st.file_uploader("Upload image", type=["png", "jpg", "jpeg"])
 
@@ -192,12 +185,12 @@ with tabs[1]:
             st.image(img, use_column_width=True)
 
             resized = img.resize((IMG_WIDTH, IMG_HEIGHT))
-            arr = np.expand_dims(np.array(resized) / 255.0, axis=0)
+            arr = np.expand_dims(np.array(resized)/255.0, axis=0)
 
             pred = model.predict(arr)[0]
             idx = np.argmax(pred)
 
-            st.success(f"Prediction: {active_labels[idx]} ({pred[idx]:.2%})")
+            st.success(f"Prediction: {class_names[idx]} ({pred[idx]:.2%})")
 
         if st.button("Delete model"):
             os.remove(full_path)
