@@ -98,7 +98,7 @@ def create_datasets(data_dir):
 # Получение списка сохранённых моделей
 # -----------------------------
 def get_saved_models():
-    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*.keras"))]
+    return [os.path.basename(f) for f in glob.glob(os.path.join(MODEL_DIR, "*.h5"))]
 
 # -----------------------------
 # Интерфейс
@@ -136,9 +136,9 @@ with tab[0]:
                 st.write("Training started...")
                 history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
                 st.success("Training finished!")
-                save_path = os.path.join(MODEL_DIR, f"{model_name}.keras")
-                model.save(save_path)
-                st.write(f"Model saved as {save_path}")
+                save_path = os.path.join(MODEL_DIR, f"{model_name}.h5")
+                model.save_weights(save_path)
+                st.write(f"Model weights saved as {save_path}")
 
 # -----------------------------
 # INFERENCE: FRESHNESS
@@ -148,7 +148,8 @@ with tab[1]:
     models_list = get_saved_models()
     selected_model = st.selectbox("Select a freshness model", models_list, key="select_freshness_model")
     if selected_model:
-        freshness_model = tf.keras.models.load_model(os.path.join(MODEL_DIR, selected_model))
+        freshness_model = create_cnn_model(num_classes=len(freshness_classes))
+        freshness_model.load_weights(os.path.join(MODEL_DIR, selected_model))
         st.success(f"Loaded model: {selected_model}")
 
         uploaded_file = st.file_uploader("Upload image for freshness prediction", type=["jpg","jpeg","png"], key="upload_freshness_image")
@@ -173,7 +174,8 @@ with tab[2]:
     models_list = get_saved_models()
     selected_model = st.selectbox("Select a fruit type model", models_list, key="select_fruit_model")
     if selected_model:
-        fruit_model = tf.keras.models.load_model(os.path.join(MODEL_DIR, selected_model))
+        fruit_model = create_cnn_model(num_classes=len(fruit_classes))
+        fruit_model.load_weights(os.path.join(MODEL_DIR, selected_model))
         st.success(f"Loaded model: {selected_model}")
 
         uploaded_file2 = st.file_uploader("Upload image for fruit prediction", type=["jpg","jpeg","png"], key="upload_fruit_image")
@@ -189,7 +191,3 @@ with tab[2]:
         if st.button("Delete selected model", key="delete_fruit"):
             os.remove(os.path.join(MODEL_DIR, selected_model))
             st.warning(f"Deleted model {selected_model}")
-
-            os.remove(os.path.join(MODEL_DIR, selected_model))
-            st.warning(f"Deleted model {selected_model}")
-
