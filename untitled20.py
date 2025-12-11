@@ -77,17 +77,35 @@ def create_cnn_model(num_classes):
 # -----------------------------
 # Create dataset
 # -----------------------------
-def create_datasets(data_dir):
-    # Игнорируем системные папки вроде __MACOSX
-    class_dirs = [
-        d for d in os.listdir(data_dir)
-        if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith("__")
-    ]
-    if len(class_dirs) == 0:
-        st.error("No valid class folders found in the dataset!")
+def get_main_data_dir(tmpdir):
+    # Все папки верхнего уровня
+    top_folders = [d for d in os.listdir(tmpdir) if os.path.isdir(os.path.join(tmpdir, d))]
+    if len(top_folders) == 0:
+        st.error("No folders found in ZIP!")
         st.stop()
 
-    class_names = sorted(class_dirs)
+    # Проверяем __MACOSX
+    if top_folders[0] == "__MACOSX":
+        if len(top_folders) < 2:
+            st.error("No valid class folders found in ZIP!")
+            st.stop()
+        main_dir = os.path.join(tmpdir, top_folders[1])
+    else:
+        main_dir = os.path.join(tmpdir, top_folders[0])
+
+    return main_dir
+
+
+def create_datasets(data_dir):
+    # Все подпапки основной папки — это классы
+    class_names = sorted([
+        d for d in os.listdir(data_dir)
+        if os.path.isdir(os.path.join(data_dir, d)) and not d.startswith("__")
+    ])
+    if len(class_names) == 0:
+        st.error("No valid class folders found inside main folder!")
+        st.stop()
+
     num_classes = len(class_names)
 
     train = tf.keras.utils.image_dataset_from_directory(
@@ -113,7 +131,8 @@ def create_datasets(data_dir):
     train = train.cache().shuffle(1000).prefetch(tf.data.AUTOTUNE)
     val = val.cache().prefetch(tf.data.AUTOTUNE)
 
-    return train, val, class_names, num_classes
+    return train, val, cl
+
 
 
 # -----------------------------
