@@ -183,8 +183,10 @@ with tab[1]:
     
     if selected_model:
         freshness_model = create_cnn_model(num_classes=len(freshness_classes))
-        freshness_model.load_weights(os.path.join(MODEL_DIR, selected_model))
-        st.success(f"Loaded model: {selected_model}")
+        freshness_model = tf.keras.models.load_model(
+            os.path.join(MODEL_DIR, selected_model),
+            custom_objects={"data_augmentation": data_augmentation}
+        )
 
         uploaded_file = st.file_uploader("Upload image for freshness prediction", type=["jpg","jpeg","png"], key="upload_freshness_image")
         if uploaded_file:
