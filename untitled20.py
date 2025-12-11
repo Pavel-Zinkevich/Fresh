@@ -159,7 +159,7 @@ with tabs[1]:
         st.success(f"Loaded model: {selected}")
 
         # detect number of classes
-        num_classes = model.layers[-1].output_shape[-1]
+        num_classes = model.output_shape[-1]
 
         if num_classes == len(freshness_classes):
             active_labels = freshness_classes
