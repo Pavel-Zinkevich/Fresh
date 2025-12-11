@@ -11,66 +11,140 @@ import streamlit as st
 from PIL import Image
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import layers, Sequential
+import zipfile
+import os
+import tempfile
 
 # -----------------------------
 # Настройки
 # -----------------------------
 IMG_WIDTH, IMG_HEIGHT = 256, 256
-
-# Пути к сохранённым моделям
-FRESHNESS_MODEL_PATH = "freshness_model.keras"
-FRUIT_MODEL_PATH = "fruit_model.keras"
-
-# Классы моделей
-freshness_classes = ["fresh", "rotten"]
-fruit_classes = ["apple", "banana", "strawberry"]
+VALIDATION_SPLIT = 0.2
+SEED = 123
+BATCH_SIZE = 32
 
 # -----------------------------
-# Загружаем модели
+# Data augmentation
 # -----------------------------
-@st.cache_resource
-def load_model(path):
-    return tf.keras.models.load_model(path)
+data_augmentation = tf.keras.Sequential([
+    layers.RandomFlip("horizontal_and_vertical"),
+    layers.RandomRotation(0.2),
+    layers.RandomZoom(0.2)
+], name="data_augmentation")
 
-freshness_model = load_model(FRESHNESS_MODEL_PATH)
-fruit_model = load_model(FRUIT_MODEL_PATH)
+# -----------------------------
+# Функции для создания модели
+# -----------------------------
+def create_cnn_model(num_classes, img_size=(IMG_WIDTH, IMG_HEIGHT, 3), dropout_rate=0.4):
+    model = Sequential([
+        layers.Input(shape=img_size),
+        data_augmentation,
+        layers.Rescaling(1./255),
+
+        layers.Conv2D(32, 3, padding='same', activation='relu'),
+        layers.MaxPooling2D(2),
+        layers.Conv2D(64, 3, padding='same', activation='relu'),
+        layers.MaxPooling2D(2),
+        layers.Conv2D(128, 3, padding='same', activation='relu'),
+        layers.MaxPooling2D(2),
+        layers.Dropout(dropout_rate),
+        layers.GlobalAveragePooling2D(),
+
+        layers.Dense(64, activation='relu'),
+        layers.Dense(num_classes, activation='softmax')
+    ])
+    return model
+
+# -----------------------------
+# Функция для создания датасета
+# -----------------------------
+def create_datasets(data_dir):
+    train_ds = tf.keras.utils.image_dataset_from_directory(
+        data_dir,
+        validation_split=VALIDATION_SPLIT,
+        subset="training",
+        seed=SEED,
+        image_size=(IMG_WIDTH, IMG_HEIGHT),
+        batch_size=BATCH_SIZE,
+        label_mode='categorical'
+    )
+    val_ds = tf.keras.utils.image_dataset_from_directory(
+        data_dir,
+        validation_split=VALIDATION_SPLIT,
+        subset="validation",
+        seed=SEED,
+        image_size=(IMG_WIDTH, IMG_HEIGHT),
+        batch_size=BATCH_SIZE,
+        label_mode='categorical'
+    )
+    class_names = train_ds.class_names
+    num_classes = len(class_names)
+    
+    train_ds = train_ds.cache().shuffle(1000).prefetch(tf.data.AUTOTUNE)
+    val_ds = val_ds.cache().prefetch(tf.data.AUTOTUNE)
+    
+    return train_ds, val_ds, class_names, num_classes
 
 # -----------------------------
 # Интерфейс
 # -----------------------------
 st.title("Fruit Freshness & Type Classifier 🍎🍌🍓")
-st.write("Загрузите изображение фрукта, чтобы определить его тип и свежесть.")
 
-uploaded_file = st.file_uploader("Выберите изображение", type=["jpg", "jpeg", "png"])
+mode = st.sidebar.selectbox("Выберите режим", ["Inference", "Train Model"])
+epochs = st.sidebar.slider("Epochs", 1, 50, 5)
+batch_size = st.sidebar.select_slider("Batch size", [16, 32, 64], value=32)
 
-if uploaded_file is not None:
-    # Показываем изображение
-    image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+# -----------------------------
+# TRAIN MODE
+# -----------------------------
+if mode == "Train Model":
+    st.header("Train your CNN Model")
+    uploaded_zip = st.file_uploader("Upload dataset folder as ZIP", type=["zip"])
 
-    # Преобразуем изображение для модели
-    resized_img = image.resize((IMG_WIDTH, IMG_HEIGHT))
-    input_array = np.expand_dims(np.array(resized_img)/255.0, axis=0)  # (1, 256, 256, 3)
+    if uploaded_zip is not None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            zip_path = os.path.join(tmpdir, "dataset.zip")
+            with open(zip_path, "wb") as f:
+                f.write(uploaded_zip.getvalue())
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(tmpdir)
+            
+            data_dir = tmpdir
+            st.write("Dataset ready. Creating dataset...")
+            train_ds, val_ds, class_names, num_classes = create_datasets(data_dir)
+            
+            st.write(f"Detected classes: {class_names}")
+            model = create_cnn_model(num_classes=num_classes)
+            model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+            
+            if st.button("Start Training"):
+                st.write("Training started...")
+                history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
+                st.success("Training finished!")
+                model.save("trained_model.h5")
+                st.write("Model saved as trained_model.h5")
 
-    # -----------------------------
-    # Предсказание свежести
-    # -----------------------------
-    freshness_pred = freshness_model.predict(input_array)
-    freshness_idx = np.argmax(freshness_pred, axis=1)[0]
-    freshness_result = freshness_classes[freshness_idx]
-    freshness_conf = freshness_pred[0][freshness_idx]
-
-    # -----------------------------
-    # Предсказание типа фрукта
-    # -----------------------------
-    fruit_pred = fruit_model.predict(input_array)
-    fruit_idx = np.argmax(fruit_pred, axis=1)[0]
-    fruit_result = fruit_classes[fruit_idx]
-    fruit_conf = fruit_pred[0][fruit_idx]
-
-    # -----------------------------
-    # Вывод результата
-    # -----------------------------
-    st.success(f"Prediction: {fruit_result} ({freshness_result})")
-    st.write(f"Fruit confidence: {fruit_conf:.2%}")
-    st.write(f"Freshness confidence: {freshness_conf:.2%}")
+# -----------------------------
+# INFERENCE MODE
+# -----------------------------
+elif mode == "Inference":
+    st.header("Inference Mode")
+    
+    if os.path.exists("trained_model.h5"):
+        model = tf.keras.models.load_model("trained_model.h5")
+        st.success("Model loaded successfully!")
+    else:
+        st.warning("No trained model found. Please train the model first.")
+    
+    uploaded_file = st.file_uploader("Upload image", type=["jpg", "jpeg", "png"])
+    
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file).convert("RGB")
+        st.image(image, caption="Uploaded Image", use_column_width=True)
+        resized_img = image.resize((IMG_WIDTH, IMG_HEIGHT))
+        input_array = np.expand_dims(np.array(resized_img)/255.0, axis=0)
+        
+        pred = model.predict(input_array)
+        pred_idx = np.argmax(pred, axis=1)[0]
+        st.success(f"Prediction: {pred_idx} ({pred[0][pred_idx]:.2%})")
