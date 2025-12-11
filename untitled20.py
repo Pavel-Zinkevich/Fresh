@@ -81,21 +81,36 @@ def create_cnn_model(num_classes):
 # Create dataset
 # -----------------------------
 def create_datasets(data_dir):
+    # Read class names manually from subfolders
+    class_names = sorted([d for d in os.listdir(data_dir)
+                          if os.path.isdir(os.path.join(data_dir, d))])
+    num_classes = len(class_names)
+
     train = tf.keras.utils.image_dataset_from_directory(
-        data_dir, validation_split=0.2, subset="training",
-        seed=123, image_size=(IMG_WIDTH, IMG_HEIGHT),
-        batch_size=BATCH_SIZE, label_mode="categorical"
+        data_dir,
+        validation_split=0.2,
+        subset="training",
+        seed=123,
+        image_size=(IMG_WIDTH, IMG_HEIGHT),
+        batch_size=BATCH_SIZE,
+        label_mode="categorical"
     )
+
     val = tf.keras.utils.image_dataset_from_directory(
-        data_dir, validation_split=0.2, subset="validation",
-        seed=123, image_size=(IMG_WIDTH, IMG_HEIGHT),
-        batch_size=BATCH_SIZE, label_mode="categorical"
+        data_dir,
+        validation_split=0.2,
+        subset="validation",
+        seed=123,
+        image_size=(IMG_WIDTH, IMG_HEIGHT),
+        batch_size=BATCH_SIZE,
+        label_mode="categorical"
     )
 
     train = train.cache().shuffle(1000).prefetch(tf.data.AUTOTUNE)
     val = val.cache().prefetch(tf.data.AUTOTUNE)
 
-    return train, val, train.class_names, len(train.class_names)
+    return train, val, class_names, num_classes
+
 
 # -----------------------------
 # List saved models
