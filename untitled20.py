@@ -149,9 +149,9 @@ with tabs[0]:
             if st.button("Start Training", key="train_start"):
                 progress = StreamlitProgress(epochs)
                 model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=[progress])
+                save_path = os.path.join(MODEL_DIR, model_name + ".h5")
+                model.save(save_path, save_format="h5")
 
-                save_path = os.path.join(MODEL_DIR, model_name)
-                model.save(save_path)
                 st.success(f"Model saved: {save_path}")
 
 # ================================================================
