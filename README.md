@@ -24,19 +24,19 @@ A **deep learning application** for classifying fruits by **type** and **freshne
 ---
 
 ## 🗂 Project Structure
-
+```
 project-root/
 │
 ├── models/ # Saved model weights (*.weights.h5)
 ├── requirements.txt # Python dependencies
 ├── untitled20.py # Streamlit application
 └── README.md # Project documentation
-
+```
 ---
 
 ## 📁 Dataset Format
 
-
+```
 dataset/
 ├── apple/
 │ ├── fresh/
@@ -47,7 +47,7 @@ dataset/
 └── strawberry/
 ├── fresh/
 └── rotten/
-
+```
 Downloaded from Kaggle using:
 
 ```python
