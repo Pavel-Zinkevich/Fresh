@@ -240,47 +240,34 @@ with tabs[1]:
             idx = np.argmax(pred)
 
             st.success(f"Prediction: {class_names[idx]} ({pred[idx]:.2%})")
-
-            # Make delete button red
-            # CSS для красивой красной кнопки
+  # --- CSS: нацелен только на кнопку с aria-label="Delete model" ---
             st.markdown("""
                 <style>
-                .delete-btn {
-                    background-color: #ff4d4d;
-                    color: white;
-                    padding: 12px 20px;
-                    border: none;
-                    border-radius: 8px;
-                    font-size: 16px;
-                    cursor: pointer;
-                    width: 100%;
-                    text-align: center;
-                    display: inline-block;
-                    margin-top: 10px;
+                /* Стилизуем только кнопку с текстом "Delete model" */
+                button[aria-label="Delete model"] {
+                    background-color: #e53935 !important;
+                    color: white !important;
+                    border-radius: 8px !important;
+                    height: 42px !important;
+                    width: 100% !important;
+                    border: none !important;
+                    font-weight: 600 !important;
                 }
-                .delete-btn:hover {
-                    background-color: #e60000;
+                button[aria-label="Delete model"]:hover {
+                    background-color: #d32f2f !important;
                 }
                 </style>
             """, unsafe_allow_html=True)
-            
-            # HTML-кнопка (ссылка, которая меняет параметр ?delete=true)
-            st.markdown(
-                f'<a href="?delete={selected}" class="delete-btn">Delete model</a>',
-                unsafe_allow_html=True
-            )
-            
-            # Проверяем, кликнули ли
-            query_params = st.query_params
-            
-            if "delete" in query_params and query_params["delete"] == selected:
-                os.remove(full_path)
-                class_file = full_path.replace(".h5", "_classes.json")
-                if os.path.exists(class_file):
-                    os.remove(class_file)
-            
-                st.success("Model deleted!")
-            
-                # очищаем параметры, чтобы кнопка не срабатывала после обновления страницы
-                st.query_params.clear()
 
+            # --- Нативная кнопка Streamlit (будет стилизована CSS'ом выше) ---
+            clicked = st.button("Delete model", key="delete_model")
+
+            if clicked:
+                try:
+                    os.remove(full_path)
+                    class_file = full_path.replace(".h5", "_classes.json")
+                    if os.path.exists(class_file):
+                        os.remove(class_file)
+                    st.success("Model and class names removed.")
+                except Exception as e:
+                    st.error(f"Error deleting model: {e}")
