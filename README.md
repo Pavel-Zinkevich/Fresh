@@ -57,6 +57,7 @@ import kagglehub
 path = kagglehub.dataset_download("abdulrafeyyashir/fresh-vs-rotten-fruit-images")
 
 print("Path to dataset files:", path)
+```
 
 
 <img width="839" height="601" alt="image" src="https://github.com/user-attachments/assets/d6faf995-62fc-459e-a3e6-0cce8c41355b" />
