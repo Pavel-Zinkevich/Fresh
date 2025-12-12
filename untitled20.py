@@ -244,6 +244,7 @@ with tabs[1]:
         from streamlit_extras.stylable_container import stylable_container
 
         # --- Red delete button ---
+
         with stylable_container(
             key="delete_style",
             css_styles="""
@@ -261,12 +262,14 @@ with tabs[1]:
                 }
             """
         ):
-        if delete_clicked:
-            try:
-                os.remove(full_path)
-                class_file = full_path.replace(".h5", "_classes.json")
-                if os.path.exists(class_file):
-                    os.remove(class_file)
-                st.success("Model will be deleted shortly!")
-            except Exception as e:
-                st.error(f"Error deleting model: {e}")
+            delete_clicked = st.button("Delete model", key="delete_model")
+        
+            if delete_clicked:
+                try:
+                    os.remove(full_path)
+                    class_file = full_path.replace(".h5", "_classes.json")
+                    if os.path.exists(class_file):
+                        os.remove(class_file)
+                    st.success("Model deleted!")
+                except Exception as e:
+                    st.error(f"Error deleting model: {e}")
