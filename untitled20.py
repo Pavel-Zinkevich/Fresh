@@ -242,27 +242,45 @@ with tabs[1]:
             st.success(f"Prediction: {class_names[idx]} ({pred[idx]:.2%})")
 
             # Make delete button red
-            # --- CSS ---
+            # CSS для красивой красной кнопки
             st.markdown("""
                 <style>
-                .red-button > button {
-                    background-color: #ff4d4d !important;
-                    color: white !important;
-                    border-radius: 5px !important;
-                    height: 3em !important;
-                    border: none !important;
+                .delete-btn {
+                    background-color: #ff4d4d;
+                    color: white;
+                    padding: 12px 20px;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    width: 100%;
+                    text-align: center;
+                    display: inline-block;
+                    margin-top: 10px;
+                }
+                .delete-btn:hover {
+                    background-color: #e60000;
                 }
                 </style>
             """, unsafe_allow_html=True)
             
-            # --- wrap button ---
-            delete = st.markdown('<div class="red-button">', unsafe_allow_html=True)
-            clicked = st.button("Delete model", key="delete_model")
-            st.markdown('</div>', unsafe_allow_html=True)
+            # HTML-кнопка (ссылка, которая меняет параметр ?delete=true)
+            st.markdown(
+                f'<a href="?delete={selected}" class="delete-btn">Delete model</a>',
+                unsafe_allow_html=True
+            )
             
-            if clicked:
+            # Проверяем, кликнули ли
+            query_params = st.query_params
+            
+            if "delete" in query_params and query_params["delete"] == selected:
                 os.remove(full_path)
                 class_file = full_path.replace(".h5", "_classes.json")
                 if os.path.exists(class_file):
                     os.remove(class_file)
-                st.warning("Model and class names removed.")
+            
+                st.success("Model deleted!")
+            
+                # очищаем параметры, чтобы кнопка не срабатывала после обновления страницы
+                st.query_params.clear()
+
