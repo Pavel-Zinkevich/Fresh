@@ -270,6 +270,6 @@ with tabs[1]:
                     class_file = full_path.replace(".h5", "_classes.json")
                     if os.path.exists(class_file):
                         os.remove(class_file)
-                    st.success("Model is being deleted!")
+                    st.success("Model is being deleted, please refresh your page in a few seconds!")
                 except Exception as e:
                     st.error(f"Error deleting model: {e}")
