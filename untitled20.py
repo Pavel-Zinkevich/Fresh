@@ -240,10 +240,34 @@ with tabs[1]:
             idx = np.argmax(pred)
 
             st.success(f"Prediction: {class_names[idx]} ({pred[idx]:.2%})")
+        from streamlit_extras.stylable_container import stylable_container
 
-        if st.button("Delete model"):
-            os.remove(full_path)
-            class_file = full_path.replace(".h5", "_classes.json")
-            if os.path.exists(class_file):
-                os.remove(class_file)
-            st.warning("Model and class names removed.")
+        # --- Red delete button ---
+        with stylable_container(
+            key="delete_style",
+            css_styles="""
+                button {
+                    background-color: #FF4D4D !important;
+                    color: white !important;
+                    border-radius: 8px !important;
+                    width: 100% !important;
+                    height: 45px !important;
+                    font-weight: 600 !important;
+                    border: none !important;
+                }
+                button:hover {
+                    background-color: #E60000 !important;
+                }
+            """
+        ):
+            delete_clicked = st.button("Delete model", key="delete_model")
+        if delete_clicked:
+            try:
+                os.remove(full_path)
+                class_file = full_path.replace(".h5", "_classes.json")
+                if os.path.exists(class_file):
+                    os.remove(class_file)
+                st.success("Model deleted!")
+            except Exception as e:
+                st.error(f"Error deleting model: {e}")
+
