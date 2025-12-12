@@ -60,7 +60,8 @@ print("Path to dataset files:", path)
 ```
 
 
-<img width="839" height="601" alt="image" src="https://github.com/user-attachments/assets/d6faf995-62fc-459e-a3e6-0cce8c41355b" />
-<img width="840" height="615" alt="image" src="https://github.com/user-attachments/assets/cc935bed-dda4-48ae-8a20-43a9e13336f2" />
+<img width="773" height="731" alt="image" src="https://github.com/user-attachments/assets/1dc37935-6ac5-4a6e-8323-f8d75e7c7f08" />
+<img width="773" height="731" alt="image" src="https://github.com/user-attachments/assets/d00495d5-bed8-4b41-8c3d-ed7c1d6207c8" />
+
 
 
