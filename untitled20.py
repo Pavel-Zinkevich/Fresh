@@ -262,12 +262,15 @@ with tabs[1]:
         ):
             delete_clicked = st.button("Delete model", key="delete_model")
         if delete_clicked:
+            status = st.warning("Deleting model…")   # Step 1: show message
+            time.sleep(4)                            # Step 2: delay
+            
             try:
                 os.remove(full_path)
                 class_file = full_path.replace(".h5", "_classes.json")
                 if os.path.exists(class_file):
                     os.remove(class_file)
-                st.success("Model deleted!")
+        
+                status.success("Model deleted!")     # Step 3: update message
             except Exception as e:
-                st.error(f"Error deleting model: {e}")
-
+                status.error(f"Error deleting model: {e}")
