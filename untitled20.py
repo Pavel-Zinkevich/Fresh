@@ -241,9 +241,24 @@ with tabs[1]:
 
             st.success(f"Prediction: {class_names[idx]} ({pred[idx]:.2%})")
 
-        if st.button("Delete model"):
-            os.remove(full_path)
-            class_file = full_path.replace(".h5", "_classes.json")
-            if os.path.exists(class_file):
-                os.remove(class_file)
-            st.warning("Model and class names removed.")
+            # Make delete button red
+            st.markdown("""
+                <style>
+                .red-button button {
+                    background-color: #ff4d4d;
+                    color: white;
+                    border-radius: 5px;
+                    height: 3em;
+                    width: 100%;
+                    border: None;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+            
+            if st.button("Delete model", key="delete_model", type="primary", help="Delete this model", use_container_width=True):
+                os.remove(full_path)
+                class_file = full_path.replace(".h5", "_classes.json")
+                if os.path.exists(class_file):
+                    os.remove(class_file)
+                st.warning("Model and class names removed.")
+
