@@ -157,6 +157,19 @@ def get_saved_models():
 # Streamlit UI
 # -----------------------------
 st.title("Fruit Classifier 🍎🍌🍓")
+st.markdown(
+    """
+    Welcome to the **Fruit Classifier** web app!  
+
+    This app was trained on a fruit dataset to predict:
+
+    1. **Freshness** – whether a fruit is *Fresh* or *Rotten*.
+    2. **Fruit Type** – classify the fruit as *Apple*, *Banana*, or *Strawberry*.
+
+    You can also **train your own models** by uploading a dataset ZIP file structured by class folders. 
+    After training, you can select your model for inference, or use the provided pre-trained models.
+    """
+)
 tabs = st.tabs(["Train Model", "Inference"])
 
 # ================================================================
